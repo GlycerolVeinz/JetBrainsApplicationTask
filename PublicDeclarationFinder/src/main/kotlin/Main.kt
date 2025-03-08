@@ -1,4 +1,20 @@
-import org.jetbrains.kotlin.asJava.classes.runReadAction
+/* TODO Task
+Write a kotlin program, which will print all public declarations from a Kotlin program/library sources.
+
+The application should be written in kotlin and allowed to use kotlin-compiler-embeddable (https://central.sonatype.com/artifact/org.jetbrains.kotlin/kotlin-compiler-embeddable)
+Sample Usage
+
+$ git clone https://github.com/JetBrains/Exposed
+$ ./your-solution ./Exposed
+fun declaration1()
+class A {
+   fun declaration2()
+}
+....
+
+
+* */
+
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.messages.MessageRenderer
 import org.jetbrains.kotlin.cli.common.messages.PrintingMessageCollector
@@ -60,11 +76,13 @@ class KotlinFileAnalyzer {
     }
 
     fun getInsideClass(declaration: KtDeclaration): List<KtDeclaration> {
+        // TODO Think if you don't need to rewrite this, so that it fits the format
         return when(declaration){
             is KtClassOrObject -> declaration.declarations + listOf(declaration)
             else -> listOf(declaration)
         }
     }
+
 }
 
 fun main(args: Array<String>) {
@@ -84,7 +102,6 @@ fun main(args: Array<String>) {
         .flatMap { it.declarations }
         .flatMap { kotlinFileAnalyzer.getInsideClass(it) }
         .filter { it.isPublic }
-        .map { it.name }
-        .forEach(::println)
+        .map { TODO("Need to get only a signature string") }
 
 }
