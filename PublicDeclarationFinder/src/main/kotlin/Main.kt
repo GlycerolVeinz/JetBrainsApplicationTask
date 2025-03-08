@@ -1,6 +1,17 @@
+import org.jetbrains.kotlin.asJava.classes.runReadAction
+import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
+import org.jetbrains.kotlin.cli.common.messages.MessageRenderer
+import org.jetbrains.kotlin.cli.common.messages.PrintingMessageCollector
+import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
+import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
+import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer
+import org.jetbrains.kotlin.com.intellij.psi.PsiManager
+import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.psi.*
+import org.jetbrains.kotlin.psi.psiUtil.isPublic
 
 import java.io.File
+
 
 const val wrongInputErrMsg: String = "No input found, please specify a working directory"
 const val invalidDirectoryErrMsg: String = "The specified file either doesn't exist, or isn't a directory. Please try something else"
@@ -21,32 +32,38 @@ class DirectoryBrowser {
 }
 
 class KotlinFileAnalyzer {
-    private fun analyzeDeclaration(declaration: KtDeclaration): String{
-        return when (declaration) {
-            is KtNamedFunction -> {
-                declaration.name ?: emptyString
-            }
+    private val environment: KotlinCoreEnvironment
+    private val psiManager: PsiManager
+    private val psiFactory: KtPsiFactory
 
-            is KtClass -> {
-                declaration.name ?: emptyString
-            }
+    init {
+        val disposable = Disposer.newDisposable()
+        val configuration = CompilerConfiguration()
+        configuration.put(
+            CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY,
+            PrintingMessageCollector(System.err, MessageRenderer.PLAIN_RELATIVE_PATHS, false)
+        )
 
-            is KtProperty -> {
-                declaration.name ?: emptyString
-            }
+        environment = KotlinCoreEnvironment.createForProduction(
+            disposable,
+            configuration,
+            EnvironmentConfigFiles.JVM_CONFIG_FILES
+        )
 
-            else -> {
-                ""
-            }
+        psiManager = PsiManager.getInstance(environment.project)
+        psiFactory = KtPsiFactory(environment.project)
+
+    }
+
+    fun toKtFile(file: File): KtFile{
+        return this.psiFactory.createFile(file.name, file.readText())
+    }
+
+    fun getInsideClass(declaration: KtDeclaration): List<KtDeclaration> {
+        return when(declaration){
+            is KtClassOrObject -> declaration.declarations + listOf(declaration)
+            else -> listOf(declaration)
         }
-    }
-
-    fun writePublicDeclarations(file: KtFile){
-        file.declarations.map { analyzeDeclaration(it) }.forEach(::println)
-    }
-
-    fun toKtFile(codeString: String, fileName: String): KtFile {
-
     }
 }
 
@@ -63,4 +80,11 @@ fun main(args: Array<String>) {
     val kotlinFiles = directoryBrowser.getFilesByExtension(workingDirectory, kotlinFileExtension)
 
     val kotlinFileAnalyzer = KotlinFileAnalyzer()
+    kotlinFiles.asSequence().map { kotlinFileAnalyzer.toKtFile(it) }
+        .flatMap { it.declarations }
+        .flatMap { kotlinFileAnalyzer.getInsideClass(it) }
+        .filter { it.isPublic }
+        .map { it.name }
+        .forEach(::println)
+
 }

@@ -11,8 +11,8 @@ repositories {
 
 dependencies {
     testImplementation(kotlin("test"))
-    implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:1.9.0")
-    implementation("org.jetbrains.kotlin:kotlin-compiler")
+    implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:1.8.21")
+    implementation("org.jetbrains.kotlin:kotlin-reflect:1.8.21")
 }
 
 tasks.test {
