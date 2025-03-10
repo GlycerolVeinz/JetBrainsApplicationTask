@@ -106,7 +106,7 @@ class KotlinFileFormatter {
 
     private fun formatFunctionParameters(declaration: KtNamedFunction): String {
         var retString: String = emptyString
-        declaration.valueParameters.forEachIndexed(){ index, param ->
+        declaration.valueParameters.forEachIndexed{ index, param ->
             if (index != 0) retString += ", "
             retString += param.text
         }
@@ -139,7 +139,7 @@ class KotlinFileFormatter {
     }
 
     private fun findLocalClassDeclarations(declaration: KtClassOrObject): List<KtDeclaration> {
-        return declaration.declarations ?: emptyList()
+        return declaration.declarations
     }
 
     private fun formatClassBody(declaration: KtClassOrObject, depth: Int): String {
