@@ -84,7 +84,7 @@ class KotlinFileFormatter {
             is KtProperty -> formatProperty(declaration, depth)
             is KtNamedFunction -> formatFunction(declaration, depth)
             is KtClassOrObject -> formatClassOrObject(declaration, depth)
-            else -> return emptyString
+            else -> return "OTHER_PUBLIC_DECLARATION_START\n" + declaration.text + "\nOTHER_PUBLIC_DECLARATION_END\n"
         }
 
         return signature + "\n"
@@ -165,6 +165,15 @@ fun printPublicDeclarationsFromKotlinFiles(files: List<File>){
         .forEach { print(it) }
 }
 
+/*
+*  Programmes entry-point
+*  Note: The programme needs these gradle dependencies to work properly:
+*   implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:1.8.21")
+*   implementation("org.jetbrains.kotlin:kotlin-reflect:1.8.21")
+*
+*  How to use:
+*   - Run the programme with a directory as an argument
+* */
 fun main(args: Array<String>) {
     if (args.isEmpty()){
         throw RuntimeException(wrongInputErrMsg)
