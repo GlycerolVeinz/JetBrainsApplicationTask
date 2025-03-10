@@ -1,18 +1,4 @@
-/* TODO Task
-Write a kotlin program, which will print all public declarations from a Kotlin program/library sources.
-
-The application should be written in kotlin and allowed to use kotlin-compiler-embeddable (https://central.sonatype.com/artifact/org.jetbrains.kotlin/kotlin-compiler-embeddable)
-Sample Usage
-
-$ git clone https://github.com/JetBrains/Exposed
-$ ./your-solution ./Exposed
-fun declaration1()
-class A {
-   fun declaration2()
-}
-....
-* */
-
+// Imports =============================================================================================================
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.messages.MessageRenderer
 import org.jetbrains.kotlin.cli.common.messages.PrintingMessageCollector
@@ -21,19 +7,25 @@ import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer
 import org.jetbrains.kotlin.com.intellij.psi.PsiManager
 import org.jetbrains.kotlin.config.CompilerConfiguration
+import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import org.jetbrains.kotlin.psi.psiUtil.isPublic
 
 import java.io.File
 
-
+// Constants ===========================================================================================================
 const val wrongInputErrMsg: String = "No input found, please specify a working directory"
 const val invalidDirectoryErrMsg: String = "The specified file either doesn't exist, or isn't a directory. Please try something else"
 const val kotlinFileExtension: String = "kt"
 const val emptyString: String = ""
 const val tabString: String = "  "
 
+
+// Utility classes =====================================================================================================
+/*
+*  A utility class for getting files from a directory
+* */
 class DirectoryBrowser {
     fun isValidDirectory(dir: String): Boolean {
         val file = File(dir)
@@ -47,6 +39,9 @@ class DirectoryBrowser {
     }
 }
 
+/*
+*  Utility class that uses Kotlin's PSI to transform text in to KtFile
+* */
 class KotlinFileAnalyzer {
     private val environment: KotlinCoreEnvironment
     private val psiManager: PsiManager
@@ -77,11 +72,33 @@ class KotlinFileAnalyzer {
 
 }
 
+/*
+*  Utility class for formatting declarations from a KtFile
+* */
 class KotlinFileFormatter {
-    private fun formatVariable(ktProperty: KtProperty, depth: Int): String {
-        return tabString.repeat(depth) + ktProperty.text
+//    Main function of the class
+    fun formatDeclarationSignature(declaration: KtDeclaration, depth: Int, publicOnly: Boolean = true): String {
+        if (!declaration.isPublic && publicOnly) return emptyString
+
+        val signature: String = when (declaration){
+            is KtProperty -> formatProperty(declaration, depth)
+            is KtNamedFunction -> formatFunction(declaration, depth)
+            is KtClassOrObject -> formatClassOrObject(declaration, depth)
+            else -> return emptyString
+        }
+
+        return signature + "\n"
     }
 
+//    Property(Variable) formatting
+    private fun formatProperty(ktProperty: KtProperty, depth: Int): String {
+        val modifier = if (ktProperty.hasModifier(KtTokens.CONST_KEYWORD)) "const " else ""
+        val variableType = if (ktProperty.isVar) "var" else "val"
+        val propertyType = ktProperty.typeReference?.text ?: "Any"
+        return tabString.repeat(depth) + "$modifier$variableType: $propertyType ${ktProperty.name} = ${ktProperty.initializer?.text}"
+    }
+
+//    Function formatting
     private fun findLocalFunctionDeclarations(declaration: KtNamedFunction): List<KtDeclaration> {
         val functionBody = declaration.bodyExpression ?: return emptyList()
         return functionBody.collectDescendantsOfType<KtDeclaration>()
@@ -111,26 +128,14 @@ class KotlinFileFormatter {
     private fun formatFunction(declaration: KtNamedFunction, depth: Int): String {
         return formatFunctionSignature(declaration, depth) +
                 formatFunctionBodyDeclarations(declaration, depth + 1) +
-                tabString.repeat(depth) + "}\n"
+                tabString.repeat(depth) + "}"
     }
 
-    fun formatDeclarationSignature(declaration: KtDeclaration, depth: Int): String {
-        if (!declaration.isPublic) return emptyString
-
-        val signature: String = when (declaration){
-            is KtProperty -> formatVariable(declaration, depth)
-            is KtNamedFunction -> formatFunction(declaration, depth)
-            is KtClassOrObject -> formatClassOrObject(declaration, depth)
-            else -> return emptyString
-        }
-
-        return signature + "\n"
-    }
-
+//    Class or Object formatting
     private fun formatClassOrObject(declaration: KtClassOrObject, depth: Int): String{
         return formatClassSignature(declaration, depth) +
                 formatClassBody(declaration, depth + 1) +
-                tabString.repeat(depth) + "}\n"
+                tabString.repeat(depth) + "}"
     }
 
     private fun findLocalClassDeclarations(declaration: KtClassOrObject): List<KtDeclaration> {
@@ -150,6 +155,16 @@ class KotlinFileFormatter {
     }
 }
 
+fun printPublicDeclarationsFromKotlinFiles(files: List<File>){
+    val kotlinFileAnalyzer = KotlinFileAnalyzer()
+    val formater = KotlinFileFormatter()
+
+    files.asSequence().map { kotlinFileAnalyzer.toKtFile(it) }
+        .flatMap { it.declarations }
+        .map { formater.formatDeclarationSignature(it, 0) }
+        .forEach { print(it) }
+}
+
 fun main(args: Array<String>) {
     if (args.isEmpty()){
         throw RuntimeException(wrongInputErrMsg)
@@ -159,18 +174,7 @@ fun main(args: Array<String>) {
     if (!directoryBrowser.isValidDirectory(args[0])) {
         throw RuntimeException(invalidDirectoryErrMsg)
     }
-    val workingDirectory = File(args[0])
-    val kotlinFiles = directoryBrowser.getFilesByExtension(workingDirectory, kotlinFileExtension)
+    val kotlinFiles = directoryBrowser.getFilesByExtension(File(args[0]), kotlinFileExtension)
 
-    val kotlinFileAnalyzer = KotlinFileAnalyzer()
-    val formater = KotlinFileFormatter()
-
-    var final: String = emptyString
-
-    kotlinFiles.asSequence().map { kotlinFileAnalyzer.toKtFile(it) }
-        .flatMap { it.declarations }
-        .map { formater.formatDeclarationSignature(it, 0) }
-        .forEach { final += it }
-
-    println(final)
+    printPublicDeclarationsFromKotlinFiles(kotlinFiles)
 }
